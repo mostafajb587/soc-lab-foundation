@@ -21,3 +21,14 @@ The USERS network was successfully validated through the pfSense LAN interface.
 - Average latency: `0 ms`
 
 This confirms that the VMnet1 network, pfSense `em1` interface, addressing, and LAN connectivity are functioning correctly.
+
+### Active Directory DNS Validation
+
+The Active Directory DNS service was successfully validated on `SOC-DC01`.
+
+- DNS Server: `10.10.20.10`
+- Active Directory domain: `corp.local`
+- DNS query: Successful
+- Resolved address: `10.10.20.10`
+
+The `corp.local` DNS zone correctly resolves to the Domain Controller, confirming that the AD-integrated DNS service is operational.
