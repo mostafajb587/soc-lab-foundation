@@ -1,94 +1,232 @@
+# Network Design
 
-## Network Overview
+## Objective
 
-The lab uses three virtual networks:
+Define the final network architecture, IP addressing, VMware network mapping, and device placement for the SOC Lab Foundation.
 
-* **VMnet8** — WAN / external connectivity
-* **VMnet1** — Users network
-* **VMnet2** — Servers network
+The design separates user endpoints from server infrastructure and uses pfSense as the routing and security boundary between the networks.
 
-pfSense connects these networks and provides the routing point between them.
-
-## IP Addressing Plan
-
-| Device / Interface   | Network | IP Address       | Purpose                   |
-| -------------------- | ------- | ---------------- | ------------------------- |
-| **SOC-FW01 WAN**     | VMnet8  | DHCP             | External/WAN connectivity |
-| **SOC-FW01 USERS**   | VMnet1  | `10.10.10.1/24`  | Users gateway             |
-| **SOC-FW01 SERVERS** | VMnet2  | `10.10.20.1/24`  | Servers gateway           |
-| **SOC-WIN01**        | USERS   | `10.10.10.10/24` | Windows client            |
-| **SOC-DC01**         | SERVERS | `10.10.20.10/24` | AD + DNS server           |
-
-### Network Summary
-
-| Network | Subnet            | Gateway      | Main Role               |
-| ------- | ----------------- | ------------ | ----------------------- |
-| WAN     | `192.168.46.0/24` | VMware NAT   | Internet access         |
-| USERS   | `10.10.10.0/24`   | `10.10.10.1` | User endpoints          |
-| SERVERS | `10.10.20.0/24`   | `10.10.20.1` | Infrastructure services |
-
-## Network Topology
+## Network Architecture
 
 ```text
                          Internet
                             │
-                         VMnet8
-                    192.168.46.0/24
+                            ▼
+                     VMware NAT (VMnet8)
                             │
-                       pfSense WAN
-                            │
-                    ┌───────┴───────┐
-                    │               │
-                 VMnet1           VMnet2
-               USERS             SERVERS
-            10.10.10.0/24      10.10.20.0/24
-                    │               │
-               SOC-WIN01        SOC-DC01
-              10.10.10.10      10.10.20.10
-                                  AD + DNS
+                            ▼
+                       SOC-FW01
+                         pfSense
+                       /        \
+                      /          \
+                     ▼            ▼
+                VMnet1          VMnet2
+                 USERS          SERVERS
+            10.10.10.0/24    10.10.20.0/24
+                  │                │
+                  ▼                ▼
+             SOC-WIN01         SOC-DC01
+            10.10.10.128      10.10.20.10
 ```
 
-## Routing
+## VMware Networks
 
-pfSense acts as the default gateway for both internal networks:
+| VMware Network | Type / Role | Purpose                          |
+| -------------- | ----------- | -------------------------------- |
+| VMnet8         | NAT         | External / Internet connectivity |
+| VMnet1         | Host-only   | Internal Users network           |
+| VMnet2         | Host-only   | Internal Servers network         |
+
+VMnet1 and VMnet2 are separate VMware virtual networks. They are used as internal segmentation boundaries and are **not VLANs**.
+
+The current lab uses network separation through distinct VMware networks and Layer 3 firewall enforcement on pfSense.
+
+## IP Addressing
+
+### Users Network
 
 ```text
-USERS   → 10.10.10.1
-SERVERS → 10.10.20.1
+Network:  10.10.10.0/24
+Gateway:  10.10.10.1
 ```
 
-Traffic between the Users and Servers networks is routed through pfSense, where firewall policies will determine whether the communication is permitted.
-
-## DNS
-
-The internal DNS server will be provided by **SOC-DC01**:
+Primary endpoint:
 
 ```text
 SOC-WIN01
-    │
-    └── DNS → 10.10.20.10
-                   │
-                SOC-DC01
+IP: 10.10.10.128
 ```
 
-This allows the Windows client to resolve internal domain resources and supports Active Directory authentication.
+### Servers Network
 
-## Design Notes
+```text
+Network:  10.10.20.0/24
+Gateway:  10.10.20.1
+```
 
-* Internal networks use dedicated private address ranges independent of the VMware NAT subnet.
-* Static addressing is used for core infrastructure components.
-* The WAN interface receives its address through VMware NAT.
-* Users and Servers are maintained as separate network segments.
-* Detailed firewall policies are documented separately in `firewall.md`.
+Primary server:
 
-## SOC Relevance
+```text
+SOC-DC01
+IP: 10.10.20.10
+```
 
-The network design provides clear boundaries for future security monitoring and investigation.
+## Network Components
 
-| Network Element | SOC Value                               |
-| --------------- | --------------------------------------- |
-| pfSense         | Firewall and network security telemetry |
-| Users network   | Endpoint and user activity              |
-| Servers network | Infrastructure and identity activity    |
-| DNS             | Future DNS monitoring and investigation |
-| Segmentation    | Lateral movement detection and analysis |
+| Component | Network          | IP Address     | Role                    |
+| --------- | ---------------- | -------------- | ----------------------- |
+| SOC-FW01  | WAN / VMnet8     | DHCP           | WAN connectivity        |
+| SOC-FW01  | USERS / VMnet1   | `10.10.10.1`   | Users gateway           |
+| SOC-FW01  | SERVERS / VMnet2 | `10.10.20.1`   | Servers gateway         |
+| SOC-WIN01 | USERS            | `10.10.10.128` | Windows endpoint        |
+| SOC-DC01  | SERVERS          | `10.10.20.10`  | Domain Controller / DNS |
+
+## Routing
+
+Inter-network routing is provided by `SOC-FW01`.
+
+Traffic between:
+
+```text
+10.10.10.0/24
+        ↕
+10.10.20.0/24
+```
+
+passes through pfSense and is evaluated by the firewall policy.
+
+Direct Layer 2 communication between the Users and Servers networks is not present.
+
+## DNS
+
+The Active Directory DNS server is:
+
+```text
+10.10.20.10
+```
+
+`SOC-WIN01` uses this address for domain-related DNS resolution.
+
+See:
+
+```text
+docs/dns.md
+```
+
+for detailed DNS documentation.
+
+## Network Segmentation
+
+The Users and Servers networks are intentionally separated.
+
+```text
+USERS
+10.10.10.0/24
+      │
+      │ pfSense
+      │
+      ▼
+SERVERS
+10.10.20.0/24
+```
+
+The firewall policy permits the communication required by the domain environment while blocking access from Users to other server destinations.
+
+This reduces unnecessary lateral connectivity between endpoints and infrastructure systems.
+
+## Connectivity Validation
+
+The network was validated using multiple tests.
+
+### Domain Controller Discovery
+
+```cmd
+nltest /dsgetdc:corp.local
+```
+
+Result:
+
+```text
+Command completed successfully
+```
+
+### DNS Resolution
+
+```cmd
+nslookup corp.local
+```
+
+Result:
+
+```text
+corp.local
+→ 10.10.20.10
+```
+
+### Secure Channel
+
+```cmd
+nltest /sc_verify:corp.local
+```
+
+Result:
+
+```text
+NERR_Success
+```
+
+### Inter-network Service Connectivity
+
+From `SOC-WIN01`:
+
+```powershell
+Test-NetConnection 10.10.20.10 -Port 389
+```
+
+Result:
+
+```text
+TcpTestSucceeded: True
+```
+
+This confirms that required communication from the Users network to the Domain Controller is available.
+
+### Segmentation Validation
+
+From `SOC-WIN01`:
+
+```text
+ping 10.10.20.1
+```
+
+Result:
+
+```text
+Request timed out
+```
+
+This confirms that access to the Servers gateway is blocked by the final firewall policy.
+
+## Security Considerations
+
+The network design follows these principles:
+
+* Users and Servers are separated into different network segments.
+* The Domain Controller is isolated inside the Servers network.
+* Inter-segment traffic is routed through pfSense.
+* Firewall rules control communication between the segments.
+* Administrative and infrastructure services are not placed directly on the Users network.
+* No unnecessary VLAN complexity is introduced into the current VMware-based lab.
+
+## Result
+
+The final network design provides:
+
+* Internet connectivity through VMware NAT
+* Separate Users and Servers networks
+* Centralized routing through pfSense
+* Domain services isolated in the Servers network
+* Validated inter-network communication
+* Validated segmentation enforcement
+
+This network foundation is ready for future monitoring, detection, and security-analysis projects.
