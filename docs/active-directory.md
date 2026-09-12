@@ -1,152 +1,304 @@
+# Active Directory
 
-## 1. Active Directory Overview
+## Objective
 
-The lab uses **SOC-DC01** as the central identity and infrastructure server.
+Deploy and configure a centralized Active Directory environment for the lab, providing centralized identity, authentication, authorization, and administrative organization.
 
-It will provide:
+## Domain
 
-* Active Directory Domain Services (AD DS).
-* Internal DNS.
-* User and computer authentication.
-* Group-based authorization.
-* Basic organizational structure.
-* Security telemetry for future SOC investigations.
+The lab uses the following Active Directory domain:
 
-## 2. Active Directory Architecture
-
-```text id="4qzq3u"
-                 SERVERS
-             10.10.20.0/24
-                    │
-                    ▼
-              ┌───────────┐
-              │ SOC-DC01  │
-              │ Windows   │
-              │ Server    │
-              └─────┬─────┘
-                    │
-              AD DS + DNS
-                    │
-                    ▼
-              ┌───────────┐
-              │ SOC-WIN01 │
-              │ Windows   │
-              │ Client    │
-              └───────────┘
+```text
+corp.local
 ```
 
-## 3. Domain Controller
+The corresponding NetBIOS domain name is:
 
-| Component  | Design                  |
-| ---------- | ----------------------- |
-| Hostname   | SOC-DC01                |
-| Network    | SERVERS                 |
-| IP Address | `10.10.20.10/24`        |
-| Gateway    | `10.10.20.1`            |
-| DNS        | `10.10.20.10`           |
-| Role       | Domain Controller + DNS |
+```text
+CORP
+```
 
-## 4. Domain Structure
+Active Directory-integrated DNS is used to support domain discovery, name resolution, and authentication.
 
-The lab will use a single Active Directory domain with a simple OU structure.
+## Domain Controller
+
+The Domain Controller provides the core identity services for the environment:
+
+* Active Directory Domain Services (AD DS)
+* DNS
+* Domain authentication
+* Kerberos-based authentication
+* Centralized identity management
+
+The Domain Controller is located in the **SERVERS** network:
+
+```text
+Network: 10.10.20.0/24
+DNS / Domain Controller: 10.10.20.10
+```
+
+## Organizational Unit Structure
+
+The Active Directory structure was organized using dedicated OUs:
+
+```text
+corp.local
+│
+├── Corporate Users
+│
+├── Corporate Computers
+│
+├── Corporate Servers
+│
+├── Security Groups
+│
+└── IT Administration
+```
+
+The OUs separate users, endpoints, servers, security groups, and administrative identities.
+
+This structure provides a foundation for applying targeted Group Policies and managing the environment in a controlled way.
+
+## Users
+
+The lab contains separate normal-user and administrative identities.
+
+### Standard User
+
+```text
+Mostafa Jbili
+```
+
+The normal user account is used for regular domain activity and endpoint authentication.
+
+### Administrative User
+
+```text
+itadmin
+```
+
+The administrative account is intended for IT administration rather than normal daily activity.
+
+This follows the principle of separating standard user activity from administrative operations.
+
+## Security Groups
+
+The following security groups were created:
+
+```text
+SOC-Analysts
+IT-Admins
+```
+
+Membership is based on role rather than individual permissions.
 
 Example:
 
-```text id="t3l5oj"
-Domain
-│
-├── Users
-│
-├── Computers
-│
-├── Servers
-│
-└── Groups
+```text
+Mostafa Jbili
+    ↓
+SOC-Analysts
+
+itadmin
+    ↓
+IT-Admins
 ```
 
-The structure is intentionally simple and focused on SOC-related identity monitoring rather than complex enterprise administration.
+This provides a foundation for role-based access control and future security management.
 
-## 5. Identity and Authorization
+## Domain Computer Organization
 
-The environment will use:
-
-* Individual user accounts.
-* Security groups.
-* Group-based permissions.
-* Separate administrative privileges.
-* Least-privilege principles.
-
-Users should receive only the permissions required for their intended role.
-
-## 6. Windows Client Integration
-
-**SOC-WIN01** will be joined to the Active Directory domain.
-
-The client will use:
+The Windows endpoint was joined to the `corp.local` domain and organized under:
 
 ```text
-IP Address : 10.10.10.10
-Gateway    : 10.10.10.1
-DNS        : 10.10.20.10
+Corporate Computers
+└── SOC-WIN01
 ```
 
-This allows centralized authentication and domain-based management.
+The endpoint was initially created using the default Windows computer name and was later renamed to:
 
-## 7. Security Telemetry
+```text
+SOC-WIN01
+```
 
-Active Directory and Windows authentication will generate security-relevant events that can later be collected by the SOC.
+The computer object was then moved from the default `Computers` container into the dedicated `Corporate Computers` OU.
 
-Examples include:
+## Domain Join
 
-| Activity                 | Example Event       |
-| ------------------------ | ------------------- |
-| Successful logon         | Event ID 4624       |
-| Failed logon             | Event ID 4625       |
-| Privileged logon         | Event ID 4672       |
-| Process creation         | Event ID 4688       |
-| User creation            | Event ID 4720       |
-| User deletion            | Event ID 4726       |
-| Group membership changes | Event IDs 4728/4732 |
+`SOC-WIN01` was successfully joined to:
 
-These events will support future detection engineering, threat hunting, and incident investigation.
+```text
+corp.local
+```
 
-## 8. Security Objectives
+The endpoint uses the Domain Controller as its DNS server:
 
-The Active Directory design aims to:
+```text
+DNS: 10.10.20.10
+```
 
-* Centralize authentication.
-* Apply basic least-privilege principles.
-* Separate users, computers, servers, and groups logically.
-* Generate useful Windows security telemetry.
-* Provide a realistic identity layer for future SOC investigations.
+This allows Windows to discover domain services correctly.
 
-## 9. Validation
+## Authentication
 
-The Active Directory implementation will be validated by confirming:
+Domain authentication was validated using the standard user account:
 
-| Test                           | Expected Result              |
-| ------------------------------ | ---------------------------- |
-| DNS resolution                 | Successful                   |
-| Domain Controller reachability | Successful                   |
-| Client domain join             | Successful                   |
-| Domain user authentication     | Successful                   |
-| Group membership               | Correct                      |
-| Authorization                  | Matches assigned permissions |
-| Windows Security Events        | Generated as expected        |
+```text
+CORP\Mostafa
+```
 
-## 10. SOC Relevance
+The following command was used on `SOC-WIN01`:
 
-Active Directory provides the identity layer of the SOC lab.
+```cmd
+whoami
+```
 
-It enables future investigation of:
+The result confirmed:
 
-* Brute-force attempts.
-* Credential abuse.
-* Privilege escalation.
-* Suspicious logons.
-* Account creation.
-* Group membership changes.
-* Lateral movement.
-* Compromised user accounts.
+```text
+corp\mostafa
+```
 
-This makes the AD environment a key source of telemetry for future **SIEM, Detection Engineering, Threat Hunting, and Incident Response** projects.
+This verified that the endpoint was authenticating against the domain rather than using a local account.
+
+## Domain Controller Discovery
+
+Domain Controller discovery was validated using:
+
+```cmd
+nltest /dsgetdc:corp.local
+```
+
+The command completed successfully and returned the trusted Domain Controller.
+
+## Secure Channel Validation
+
+The secure relationship between the endpoint and the domain was validated using:
+
+```cmd
+nltest /sc_verify:corp.local
+```
+
+The result confirmed:
+
+```text
+NERR_Success
+```
+
+for both the Domain Controller connection status and trust verification.
+
+This confirms that the secure channel between `SOC-WIN01` and the domain is functioning correctly.
+
+## DNS Validation
+
+Domain name resolution was validated using:
+
+```cmd
+nslookup corp.local
+```
+
+The result resolved:
+
+```text
+corp.local
+→ 10.10.20.10
+```
+
+This confirms that the endpoint can resolve the Active Directory domain through the configured DNS server.
+
+## Kerberos
+
+Kerberos is the primary authentication protocol used by the Active Directory environment.
+
+Kerberos auditing was enabled as part of the Windows security baseline to provide authentication-related telemetry for future SOC monitoring projects.
+
+Kerberos monitoring and detection engineering are intentionally outside the scope of this project.
+
+## Administrative Separation
+
+Administrative and standard user identities are separated:
+
+```text
+Standard User
+    ↓
+Mostafa Jbili
+    ↓
+SOC-Analysts
+
+Administrative User
+    ↓
+itadmin
+    ↓
+IT-Admins
+```
+
+The standard user account is intended for normal activity, while the administrative account is reserved for administrative tasks.
+
+This reduces the need to perform routine endpoint activity using privileged credentials.
+
+## Group Policy Integration
+
+The domain structure provides the foundation for centralized Group Policy management.
+
+The `Default Domain Policy` was used to apply the initial security baseline to domain computers.
+
+The resulting policy configuration includes:
+
+* Password security
+* Account lockout
+* Authentication auditing
+* Account management auditing
+* Process creation auditing
+* Kerberos auditing
+* System integrity auditing
+
+The detailed configuration is documented in:
+
+```text
+docs/security-baseline.md
+```
+
+## Security Considerations
+
+The Active Directory design follows several security principles:
+
+* Separate standard and administrative accounts.
+* Organize users and computers into dedicated OUs.
+* Use role-based security groups.
+* Keep domain infrastructure inside the Servers network.
+* Use centralized DNS for domain services.
+* Apply centralized security policies through Group Policy.
+* Avoid using highly privileged accounts for normal user activity.
+
+## Validation Summary
+
+The following Active Directory functions were successfully validated:
+
+| Validation                  | Result |
+| --------------------------- | ------ |
+| DNS resolution              | Passed |
+| Domain Controller discovery | Passed |
+| Domain Join                 | Passed |
+| Domain authentication       | Passed |
+| `whoami` domain identity    | Passed |
+| Secure channel verification | Passed |
+| Computer OU placement       | Passed |
+| Security group membership   | Passed |
+| Group Policy application    | Passed |
+
+## Result
+
+The lab now contains a functional centralized identity environment based on Active Directory.
+
+The environment provides:
+
+* Centralized authentication
+* DNS-based domain discovery
+* Organizational Units
+* Standard and administrative identities
+* Role-based security groups
+* Domain-joined Windows endpoint
+* Centralized Group Policy
+* Kerberos-based authentication foundation
+
+This Active Directory foundation will support future SOC monitoring, identity investigation, and detection projects without implementing those components in the current project.
