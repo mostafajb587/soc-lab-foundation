@@ -1,12 +1,12 @@
 # Enterprise SOC Lab Foundation
 
-A lightweight, enterprise-style cybersecurity lab designed from a SOC Analyst perspective and built as the foundation for future security monitoring, detection, investigation, threat hunting, incident response, and SOC automation projects.
+## Overview
+
+The **Enterprise SOC Lab Foundation** is a lightweight, enterprise-style cybersecurity lab designed from a SOC Analyst perspective and built as the foundation for future security monitoring, detection, investigation, threat hunting, incident response, and SOC automation projects.
 
 The project focuses on building a realistic and controlled enterprise security foundation rather than implementing the full SOC stack in a single environment.
 
-## Overview
-
-The lab provides a segmented environment containing:
+The lab provides:
 
 * pfSense firewall and gateway
 * Separate Users and Servers networks
@@ -87,7 +87,7 @@ The final lab architecture consists of three primary network zones:
 
 ### Architecture Diagram
 
-![Enterprise SOC Lab Foundation](./diagram/network-topology.png)
+![Enterprise SOC Lab Foundation](./diagrams/network_topology.jpg)
 
 > **Figure 1 — Final SOC Lab Foundation network architecture.**
 
@@ -162,13 +162,13 @@ A temporary ICMP validation rule used during testing was disabled after validati
 
 ### Firewall Interfaces
 
-![pfSense interface assignments](./diagram/pfSense-interface-assignments.png)
+![pfSense interface assignments](./diagrams/pfSense-interface-assignments.png)
 
 > **Figure 2 — pfSense interface assignments for WAN, Users, and Servers networks.**
 
 ### Final Firewall Policy
 
-![Final LAN firewall rules](./diagram/firewall-lan-final-rules.png)
+![Final LAN firewall rules](./diagrams/firewall-lan-final-rules.png)
 
 > **Figure 3 — Final LAN firewall policy enforcing controlled Users-to-Servers communication.**
 
@@ -201,7 +201,7 @@ The Active Directory environment is organized into dedicated OUs and security gr
 
 ### Active Directory Structure
 
-![Active Directory structure](./diagram/active-directory-structure.png)
+![Active Directory structure](./diagrams/active-directory-structure.png)
 
 > **Figure 4 — Active Directory organizational structure.**
 
@@ -253,13 +253,13 @@ The baseline also enables security-relevant auditing for:
 
 ### Password Policy Configuration
 
-![Password policy](./diagram/gpo-password-policy.png)
+![Password policy](./diagrams/gpo-password-policy.png)
 
 > **Figure 5 — Domain password security baseline configured through the Default Domain Policy.**
 
 ### Account Lockout Policy
 
-![Account lockout policy](./diagram/gpo-account-lockout-policy.png)
+![Account lockout policy](./diagrams/account-lockout-policy.png)
 
 > **Figure 6 — Domain account lockout policy configured through the Default Domain Policy.**
 
@@ -271,13 +271,13 @@ Detailed documentation:
 
 The Default Domain Policy was successfully applied to `SOC-WIN01`.
 
-![Group Policy application](./diagram/gpresult-default-domain-policy.png)
+![Group Policy application](./diagrams/gpresult-default-domain-policy.png)
 
 > **Figure 7 — Successful application of the Default Domain Policy to SOC-WIN01.**
 
 The effective password and lockout values were verified locally on the endpoint.
 
-![Effective security baseline](./diagram/net-accounts-security-baseline.png)
+![Effective security baseline](./diagrams/net-accounts-security-baseline.png)
 
 > **Figure 8 — Effective password and account lockout settings on SOC-WIN01.**
 
@@ -297,7 +297,7 @@ corp.local
 → 10.10.20.10
 ```
 
-![DNS and domain validation](./diagram/dns-domain-validation.png)
+![DNS and domain validation](./diagrams/dns-domain-validation.png)
 
 > **Figure 10 — DNS resolution and Domain Controller discovery validation from SOC-WIN01.**
 
@@ -401,7 +401,7 @@ Request timed out
 
 **PASS**
 
-![Final segmentation validation](./diagram/final-segmentation-validation.png)
+![Final segmentation validation](./diagrams/final-segmentation-validation.png)
 
 > **Figure 9 — Final firewall segmentation validation showing required Domain Controller access allowed while unauthorized access to the Servers network is blocked.**
 
