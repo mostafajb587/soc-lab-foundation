@@ -1,62 +1,68 @@
 # Enterprise SOC Lab Foundation
 
+A lightweight, enterprise-style cybersecurity lab designed from a SOC Analyst perspective and built as the foundation for future security monitoring, detection, investigation, threat hunting, incident response, and SOC automation projects.
+
+The project focuses on building a realistic and controlled enterprise security foundation rather than implementing the full SOC stack in a single environment.
+
 ## Overview
 
-The **Enterprise SOC Lab Foundation** is a hands-on cybersecurity lab designed to build a small, segmented enterprise-style environment that serves as the foundation for future SOC monitoring, detection, investigation, threat hunting, and incident response projects.
+The lab provides a segmented environment containing:
 
-The lab focuses on establishing the core infrastructure and security boundaries required for meaningful security telemetry and realistic attack simulations. It includes separate user and server networks, a pfSense firewall as the central security boundary, internal DNS, Active Directory, and Windows endpoints.
+* pfSense firewall and gateway
+* Separate Users and Servers networks
+* Active Directory
+* Internal DNS
+* Domain-joined Windows endpoint
+* Centralized Group Policy
+* Basic Windows security baseline
+* Controlled inter-network communication
+* Validated firewall segmentation
 
-The environment is intentionally designed to remain lightweight and practical for a home lab while introducing key enterprise security concepts such as network segmentation, controlled inter-network communication, centralized identity, authentication, authorization, and security-focused validation.
+The environment is intentionally lightweight so it can operate as a practical home lab while still demonstrating important enterprise security concepts.
 
-This project is not intended to replicate a full production enterprise environment. Instead, it provides a controlled foundation where future projects can generate, collect, analyze, and investigate realistic security events.
+## Project Scope
 
-### Foundation Architecture
+This project focuses on:
 
-The lab is built around three primary network zones:
+```text
+Network Foundation
+        ↓
+Firewall & Segmentation
+        ↓
+DNS & Active Directory
+        ↓
+Windows Endpoint
+        ↓
+Security Baseline
+        ↓
+Validation
+```
 
-* **WAN / Internet** — VMware NAT network
-* **Users Network** — Dedicated network for user endpoints
-* **Server Network** — Dedicated network for infrastructure services
+Advanced security monitoring and SOC tooling are intentionally excluded from this project.
 
-The **pfSense firewall** provides routing and acts as the primary security boundary between these zones.
+Future projects may introduce:
 
-### Purpose
-
-The main purpose of this foundation is to create an environment that can later support projects involving:
-
-* Network Security Monitoring
-* Windows and Endpoint Telemetry
-* SIEM and Log Analysis
-* Detection Engineering
-* MITRE ATT&CK Mapping
-* Threat Hunting
-* Incident Investigation
-* Incident Response
-* SOC Automation
-
-## Objectives
-
-The primary objectives of this project are to:
-
-* Build a lightweight, enterprise-style cybersecurity lab suitable for SOC-focused learning and experimentation.
-* Establish a segmented network architecture separating user endpoints from server infrastructure.
-* Deploy pfSense as the central firewall and security boundary between network segments.
-* Establish internal DNS services to support reliable name resolution within the lab.
-* Deploy Active Directory to provide centralized identity, authentication, and authorization.
-* Connect Windows endpoints to the domain and establish a basic enterprise identity structure.
-* Implement controlled communication between network segments using firewall policies.
-* Validate network connectivity, segmentation, authentication, authorization, and security controls.
-* Establish a reliable foundation for generating and investigating security telemetry in future SOC projects.
-* Document the architecture, implementation decisions, security controls, and validation results in a reproducible manner.
+* SIEM
+* Endpoint telemetry
+* Network monitoring
+* Detection engineering
+* Threat hunting
+* Incident investigation
+* Incident response
+* SOAR and automation
 
 ## Architecture
 
-The lab follows a simple, segmented architecture designed around a central firewall and separate user and server networks.
+The final lab architecture consists of three primary network zones:
+
+* **WAN** — VMware NAT / Internet connectivity
+* **USERS** — Windows user endpoint network
+* **SERVERS** — Infrastructure and Active Directory network
 
 ```text
                          Internet
                             │
-                            │
+                            ▼
                      VMware NAT (VMnet8)
                             │
                             │ WAN
@@ -64,205 +70,462 @@ The lab follows a simple, segmented architecture designed around a central firew
                     ┌───────────────┐
                     │    SOC-FW01   │
                     │    pfSense    │
-                    │ Firewall/GW   │
+                    │ Firewall / GW │
                     └───────┬───────┘
                             │
                   ┌─────────┴─────────┐
                   │                   │
-             VMnet1               VMnet2
-          USERS NETWORK        SERVER NETWORK
-          10.10.10.0/24        10.10.20.0/24
+               VMnet1              VMnet2
+                USERS              SERVERS
+           10.10.10.0/24       10.10.20.0/24
                   │                   │
-                  │                   │
+                  ▼                   ▼
              SOC-WIN01            SOC-DC01
-             Windows Client       Windows Server
-                                  AD + DNS
+          10.10.10.128          10.10.20.10
+          Windows Client        AD + DNS
 ```
 
-### Core Components
+### Architecture Diagram
 
-| Component     | Role                                                              |
-| ------------- | ----------------------------------------------------------------- |
-| **SOC-FW01**  | pfSense firewall, gateway, routing, and network security boundary |
-| **SOC-WIN01** | Windows endpoint representing a user workstation                  |
-| **SOC-DC01**  | Windows Server providing Active Directory and internal DNS        |
-| **VMnet8**    | WAN connectivity through VMware NAT                               |
-| **VMnet1**    | Users network                                                     |
-| **VMnet2**    | Server network                                                    |
+![Enterprise SOC Lab Foundation](./diagram/network-topology.png)
 
-### Network Zones
+> **Figure 1 — Final SOC Lab Foundation network architecture.**
 
-| Zone        | Network           | Purpose                                  |
-| ----------- | ----------------- | ---------------------------------------- |
-| **WAN**     | `192.168.46.0/24` | External connectivity through VMware NAT |
-| **USERS**   | `10.10.10.0/24`   | User endpoints and workstation traffic   |
-| **SERVERS** | `10.10.20.0/24`   | Infrastructure services and servers      |
+## Core Components
 
-The architecture intentionally uses separate virtual networks for the Users and Servers zones. This provides network segmentation and establishes a clear security boundary that can be enforced through pfSense firewall policies.
+| Component     | Role                                                      |
+| ------------- | --------------------------------------------------------- |
+| **SOC-FW01**  | pfSense firewall, gateway, routing, and security boundary |
+| **SOC-WIN01** | Windows domain-joined user endpoint                       |
+| **SOC-DC01**  | Windows Server providing Active Directory and DNS         |
+| **VMnet8**    | VMware NAT / WAN connectivity                             |
+| **VMnet1**    | Users network                                             |
+| **VMnet2**    | Servers network                                           |
 
-The design avoids unnecessary enterprise complexity such as high availability, multiple domain controllers, advanced routing protocols, and large-scale network infrastructure. The goal is to maintain a lightweight environment while preserving the security concepts required for future SOC-focused projects.
+## Network Addressing
 
+| Zone    | VMware Network | Network           | Gateway      | Primary System |
+| ------- | -------------- | ----------------- | ------------ | -------------- |
+| WAN     | VMnet8         | `192.168.46.0/24` | DHCP         | SOC-FW01       |
+| USERS   | VMnet1         | `10.10.10.0/24`   | `10.10.10.1` | SOC-WIN01      |
+| SERVERS | VMnet2         | `10.10.20.0/24`   | `10.10.20.1` | SOC-DC01       |
 
-## Network Design
+VMnet1 and VMnet2 are separate VMware virtual networks. They are used as logical network segments and are **not VLANs**.
 
-The lab network is divided into separate virtual network segments to establish a clear security boundary between external connectivity, user endpoints, and server infrastructure.
-
-### Network Addressing
-
-| Network     | VMware Network | Subnet            | Purpose                                     |
-| ----------- | -------------- | ----------------- | ------------------------------------------- |
-| **WAN**     | VMnet8         | `192.168.46.0/24` | External connectivity through VMware NAT    |
-| **USERS**   | VMnet1         | `10.10.10.0/24`   | User endpoints and workstation traffic      |
-| **SERVERS** | VMnet2         | `10.10.20.0/24`   | Server infrastructure and internal services |
-
-### Network Flow
+## Network Flow
 
 ```text
 Internet
    │
    ▼
-VMware NAT (VMnet8)
+VMware NAT / VMnet8
    │
    ▼
-pfSense WAN
+SOC-FW01
    │
    ├──────────────► USERS
    │                10.10.10.0/24
+   │                SOC-WIN01
    │
    └──────────────► SERVERS
                     10.10.20.0/24
+                    SOC-DC01
 ```
 
-### Segmentation Approach
+All inter-network traffic is evaluated by pfSense firewall policy.
 
-The Users and Servers networks are implemented as separate VMware virtual networks and IP subnets.
+## Firewall and Segmentation
 
-pfSense will provide the Layer 3 routing between these networks and enforce security policies controlling which traffic is permitted between them.
+pfSense provides the security boundary between the Users and Servers networks.
 
-This approach provides practical network segmentation without introducing unnecessary switching or VLAN infrastructure into the home lab.
+The final LAN policy is:
 
-### Design Principles
+```text
+USERS → SOC-DC01
+        ALLOW
 
-* Separate user and server traffic into distinct network segments.
-* Use pfSense as the controlled routing point between internal networks.
-* Keep the internal addressing scheme independent from the VMware NAT subnet.
-* Avoid unnecessary network complexity while maintaining realistic security boundaries.
-* Design the network to support future SOC monitoring and investigation activities.
+USERS → Other SERVERS
+        BLOCK
+```
 
-## Security Controls
+The active policy contains:
 
-The lab uses multiple security controls to establish basic defense-in-depth and controlled communication between network segments.
+| Order | Source     | Destination     | Action            |
+| ----: | ---------- | --------------- | ----------------- |
+|     1 | LAN subnet | `10.10.20.10`   | Allow             |
+|     2 | LAN subnet | `10.10.20.0/24` | Block             |
+|     3 | LAN subnet | Any             | Allow as required |
 
-### Network Security
+The IPv6 default allow rule was disabled because IPv6 is not part of the current lab design.
 
-* **pfSense Firewall** acts as the primary security boundary and routing point between the WAN, Users, and Servers networks.
-* **Network Segmentation** separates user endpoints from server infrastructure.
-* **Firewall Policies** will control permitted and denied traffic between network segments.
-* **Default-deny principles** will be applied where appropriate to minimize unnecessary network access.
+A temporary ICMP validation rule used during testing was disabled after validation and is not part of the final active policy.
 
-### Identity and Access Control
+### Firewall Interfaces
 
-* **Active Directory** provides centralized identity and authentication.
-* **Security Groups** will be used to organize permissions and access.
-* **Least-privilege principles** will be applied to user and administrative access.
-* **Basic Group Policy** will be used where appropriate to establish consistent security settings.
+![pfSense interface assignments](./diagram/pfSense-interface-assignments.png)
 
-### Security Validation
+> **Figure 2 — pfSense interface assignments for WAN, Users, and Servers networks.**
 
-Security controls will be validated through controlled testing, including:
+### Final Firewall Policy
 
-* Connectivity testing between network segments.
-* Verification of permitted and denied traffic.
-* DNS resolution testing.
-* Domain authentication testing.
-* Authorization and access-control validation.
+![Final LAN firewall rules](./diagram/firewall-lan-final-rules.png)
 
-The security controls are intentionally kept lightweight and focused on the requirements of a SOC-oriented home lab. Their primary purpose is to create realistic security boundaries and generate meaningful telemetry for future monitoring and investigation projects.
+> **Figure 3 — Final LAN firewall policy enforcing controlled Users-to-Servers communication.**
 
+Detailed firewall documentation is available in:
 
-## Lab Components
+[`docs/firewall.md`](./docs/firewall.md)
 
-The lab consists of a small set of virtual machines and virtual networks, each serving a specific role within the security architecture.
+Detailed segmentation documentation is available in:
 
-| Component     | Type              | Role                                                      |
-| ------------- | ----------------- | --------------------------------------------------------- |
-| **SOC-FW01**  | pfSense VM        | Firewall, gateway, routing, and network security boundary |
-| **SOC-DC01**  | Windows Server VM | Active Directory Domain Controller and internal DNS       |
-| **SOC-WIN01** | Windows Client VM | User endpoint and domain-joined workstation               |
-| **VMnet8**    | VMware NAT        | WAN / external connectivity                               |
-| **VMnet1**    | VMware Host-only  | Users network                                             |
-| **VMnet2**    | VMware Host-only  | Servers network                                           |
+[`docs/segmentation.md`](./docs/segmentation.md)
 
-### Component Responsibilities
+## Active Directory
 
-**SOC-FW01**
+The lab uses:
 
-Provides controlled routing between the WAN, Users, and Servers networks and enforces network security policies.
+```text
+Domain: corp.local
+NetBIOS: CORP
+```
 
-**SOC-DC01**
+`SOC-DC01` provides:
 
-Provides centralized identity through Active Directory and internal name resolution through DNS.
+* Active Directory Domain Services
+* Internal DNS
+* Domain authentication
+* Kerberos-based authentication
+* Centralized identity management
 
-**SOC-WIN01**
+The Active Directory environment is organized into dedicated OUs and security groups.
 
-Represents a typical enterprise user workstation and will provide an endpoint environment for future security monitoring and investigation activities.
+### Active Directory Structure
 
-**VMware Virtual Networks**
+![Active Directory structure](./diagram/active-directory-structure.png)
 
-Provide the underlying network separation required to isolate the Users and Servers segments while keeping the lab lightweight and manageable.
+> **Figure 4 — Active Directory organizational structure.**
 
-> Additional components such as a SIEM server, attack/testing host, endpoint telemetry, and network monitoring tools may be introduced in future projects when they are required.
+The Windows endpoint is joined to the `corp.local` domain and uses `SOC-DC01` for domain-related DNS and authentication services.
+
+Detailed documentation:
+
+[`docs/active-directory.md`](./docs/active-directory.md)
+
+## Security Baseline
+
+A domain-level security baseline was implemented through the **Default Domain Policy**.
+
+### Password Policy
+
+The effective baseline includes:
+
+| Policy                  |   Value |
+| ----------------------- | ------: |
+| Minimum password length |      12 |
+| Password complexity     | Enabled |
+| Password history        |      24 |
+| Maximum password age    | 60 days |
+| Minimum password age    |   1 day |
+
+### Account Lockout
+
+| Policy              |             Value |
+| ------------------- | ----------------: |
+| Lockout threshold   | 5 failed attempts |
+| Lockout duration    |        15 minutes |
+| Reset counter after |        15 minutes |
+
+### Security Auditing
+
+The baseline also enables security-relevant auditing for:
+
+* Logon and logoff activity
+* Account lockouts
+* Special logons
+* User account management
+* Security group management
+* Computer account management
+* Policy changes
+* System integrity
+* Process creation
+* Kerberos authentication
+* Kerberos service ticket activity
+
+### Password Policy Configuration
+
+![Password policy](./diagram/gpo-password-policy.png)
+
+> **Figure 5 — Domain password security baseline configured through the Default Domain Policy.**
+
+### Account Lockout Policy
+
+![Account lockout policy](./diagram/gpo-account-lockout-policy.png)
+
+> **Figure 6 — Domain account lockout policy configured through the Default Domain Policy.**
+
+Detailed documentation:
+
+[`docs/security-baseline.md`](./docs/security-baseline.md)
+
+## Group Policy Validation
+
+The Default Domain Policy was successfully applied to `SOC-WIN01`.
+
+![Group Policy application](./diagram/gpresult-default-domain-policy.png)
+
+> **Figure 7 — Successful application of the Default Domain Policy to SOC-WIN01.**
+
+The effective password and lockout values were verified locally on the endpoint.
+
+![Effective security baseline](./diagram/net-accounts-security-baseline.png)
+
+> **Figure 8 — Effective password and account lockout settings on SOC-WIN01.**
+
+## DNS
+
+The Domain Controller provides internal DNS for the lab.
+
+```text
+SOC-DC01
+10.10.20.10
+```
+
+The endpoint resolves:
+
+```text
+corp.local
+→ 10.10.20.10
+```
+
+![DNS and domain validation](./diagram/dns-domain-validation.png)
+
+> **Figure 10 — DNS resolution and Domain Controller discovery validation from SOC-WIN01.**
+
+Detailed documentation:
+
+[`docs/dns.md`](./docs/dns.md)
 
 ## Validation
 
-Each major component of the lab will be validated after implementation to ensure that the intended architecture and security controls are functioning correctly.
+The environment was validated after implementation.
 
-Validation will cover the following areas:
+### Network Validation
 
-| Area                     | Validation                                                                |
-| ------------------------ | ------------------------------------------------------------------------- |
-| **Network Connectivity** | Verify connectivity within and between the required network segments      |
-| **Network Segmentation** | Verify that Users and Servers networks are logically separated            |
-| **Firewall**             | Verify that permitted traffic is allowed and restricted traffic is denied |
-| **DNS**                  | Verify internal name resolution and DNS functionality                     |
-| **Active Directory**     | Verify domain functionality, authentication, and basic authorization      |
-| **Security Controls**    | Verify that implemented access-control policies behave as intended        |
+* Users network connectivity — **PASS**
+* Servers network connectivity — **PASS**
+* pfSense routing — **PASS**
 
-Validation results and supporting evidence will be documented throughout the project rather than only at the end.
+### DNS Validation
 
-The final validation will confirm that the lab provides a stable and controlled foundation for future SOC-focused projects.
+```text
+nslookup corp.local
+```
+
+Result:
+
+```text
+corp.local → 10.10.20.10
+```
+
+**PASS**
+
+### Domain Controller Discovery
+
+```text
+nltest /dsgetdc:corp.local
+```
+
+**PASS**
+
+### Secure Channel
+
+```text
+nltest /sc_verify:corp.local
+```
+
+Result:
+
+```text
+NERR_Success
+```
+
+**PASS**
+
+### Domain Authentication
+
+The endpoint successfully authenticated using the domain identity:
+
+```text
+CORP\Mostafa
+```
+
+**PASS**
+
+### Group Policy
+
+```text
+gpresult /r /scope computer
+```
+
+Confirmed:
+
+```text
+Default Domain Policy
+```
+
+**PASS**
+
+### Firewall Segmentation
+
+Required Domain Controller access:
+
+```text
+SOC-WIN01
+    ↓
+10.10.20.10:389
+    ↓
+TcpTestSucceeded: True
+```
+
+**PASS**
+
+Unauthorized access to the Servers gateway:
+
+```text
+SOC-WIN01
+    ↓
+10.10.20.1
+    ↓
+Request timed out
+```
+
+**PASS**
+
+![Final segmentation validation](./diagram/final-segmentation-validation.png)
+
+> **Figure 9 — Final firewall segmentation validation showing required Domain Controller access allowed while unauthorized access to the Servers network is blocked.**
+
+Complete validation results:
+
+[`docs/validation.md`](./docs/validation.md)
+
+## Implementation
+
+The project was implemented in the following sequence:
+
+```text
+1. VMware network preparation
+        ↓
+2. pfSense deployment
+        ↓
+3. Users / Servers network configuration
+        ↓
+4. Domain Controller deployment
+        ↓
+5. Active Directory and DNS
+        ↓
+6. Windows endpoint deployment
+        ↓
+7. Domain Join
+        ↓
+8. Security baseline
+        ↓
+9. Firewall segmentation
+        ↓
+10. Final validation
+```
+
+Implementation details:
+
+[`docs/implementation.md`](./docs/implementation.md)
+
+## Security Objectives
+
+The completed environment provides:
+
+* Network segmentation
+* Controlled inter-network communication
+* Centralized identity
+* Domain authentication
+* DNS-based domain discovery
+* Password security controls
+* Account lockout protection
+* Windows security auditing
+* Controlled Users-to-Servers access
+* Validated firewall enforcement
 
 ## SOC Relevance
 
-This foundation provides the infrastructure and security boundaries required for future SOC operations and security investigations.
+This lab provides multiple security telemetry foundations for future SOC projects.
 
-### Network Visibility
+### Network Security
 
-The segmented network architecture creates clear security boundaries between users, servers, and external connectivity. This allows future projects to analyze traffic patterns, firewall activity, scanning, lateral movement, and unauthorized access attempts.
+Future projects can use the environment to investigate:
 
-### Identity and Authentication Visibility
+* Network scanning
+* Unauthorized access attempts
+* Cross-segment communication
+* Lateral movement
+* Firewall events
+* Suspicious outbound connections
 
-Active Directory establishes centralized identity and authentication within the lab. This provides a foundation for investigating events such as successful and failed logons, privileged activity, account changes, group membership changes, and other identity-related security events.
+### Identity and Authentication
 
-### Endpoint Visibility
+Active Directory provides a foundation for investigating:
 
-The Windows endpoint provides a realistic workstation environment that can later generate security telemetry related to processes, network connections, authentication, and user activity.
+* Successful logons
+* Failed logons
+* Account lockouts
+* User and group changes
+* Privileged activity
+* Kerberos authentication activity
 
-### Security Monitoring Foundation
+### Endpoint Telemetry
 
-The firewall, network segmentation, DNS, Active Directory, and Windows endpoint collectively provide multiple sources of security-relevant telemetry.
+`SOC-WIN01` provides a realistic Windows endpoint for future monitoring and investigation activities.
 
-These components will later support projects focused on:
+### Future Projects
 
-* SIEM and centralized log analysis
-* Network Security Monitoring
-* Endpoint Security Telemetry
-* Detection Engineering
-* Threat Hunting
-* MITRE ATT&CK-based detection
-* Incident Investigation
-* Incident Response
+The foundation is intentionally separated from future security tooling.
 
-The foundation therefore acts as the underlying environment in which future SOC projects can generate realistic activity, collect security telemetry, and investigate simulated security incidents.
+Future projects may add:
 
+```text
+Project 01
+SOC Lab Foundation
+        ↓
+Windows / Network Telemetry
+        ↓
+SIEM
+        ↓
+Detection Engineering
+        ↓
+Threat Hunting
+        ↓
+Incident Response
+        ↓
+SOAR / Automation
+```
 
+## Documentation
+
+| Area              | Documentation                                              |
+| ----------------- | ---------------------------------------------------------- |
+| Network           | [`docs/network.md`](./docs/network.md)                     |
+| Firewall          | [`docs/firewall.md`](./docs/firewall.md)                   |
+| Segmentation      | [`docs/segmentation.md`](./docs/segmentation.md)           |
+| DNS               | [`docs/dns.md`](./docs/dns.md)                             |
+| Active Directory  | [`docs/active-directory.md`](./docs/active-directory.md)   |
+| Security Baseline | [`docs/security-baseline.md`](./docs/security-baseline.md) |
+| Implementation    | [`docs/implementation.md`](./docs/implementation.md)       |
+| Validation        | [`docs/validation.md`](./docs/validation.md)               |
+
+## Project Status
+
+```text
+STATUS: COMPLETE
+```
+
+The SOC Lab Foundation has been implemented, secured, tested, and documented.
+
+The environment is ready to serve as the infrastructure foundation for the next SOC-focused project.
