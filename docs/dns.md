@@ -1,109 +1,152 @@
+# DNS
 
-## 1. DNS Overview
+## Objective
 
-The lab uses **SOC-DC01** as the internal DNS server.
+Provide centralized name resolution for the lab and support Active Directory domain discovery and authentication.
 
-DNS is required for reliable internal name resolution and is an essential dependency for the Active Directory environment.
+DNS is hosted on the Domain Controller and is used by domain-joined Windows systems.
 
-## 2. DNS Architecture
+## DNS Server
 
-```text id="j4k8zn"
-                    USERS
-                 10.10.10.0/24
-                       │
-                  SOC-WIN01
-                       │
-                       │ DNS
-                       ▼
-                10.10.20.10
-                       │
-                       ▼
-                  SOC-DC01
-                  AD + DNS
-                       │
-                       ▼
-                 DNS Forwarders
-                       │
-                   Internet
-```
-
-## 3. DNS Configuration
-
-| Component      | Value                           |
-| -------------- | ------------------------------- |
-| DNS Server     | SOC-DC01                        |
-| DNS IP         | `10.10.20.10`                   |
-| DNS Type       | Internal DNS                    |
-| Primary Client | SOC-WIN01                       |
-| Client DNS     | `10.10.20.10`                   |
-| Main Purpose   | AD and internal name resolution |
-
-## 4. Internal Name Resolution
-
-The internal DNS server will provide name resolution for the Active Directory environment.
-
-Example:
+The primary DNS server in the lab is:
 
 ```text
-SOC-DC01 → 10.10.20.10
+SOC-DC01
+10.10.20.10
 ```
 
-The Windows client will use the internal DNS server rather than relying directly on public DNS for domain-related resolution.
+The server is located in the **SERVERS** network:
 
-## 5. DNS and Active Directory
+```text
+10.10.20.0/24
+```
 
-Active Directory depends heavily on DNS.
+`SOC-WIN01` uses `10.10.20.10` as its DNS server.
 
-DNS will support:
+## Domain
 
-* Domain discovery.
-* Domain controller discovery.
-* Kerberos-related services.
-* LDAP-related services.
-* Internal host resolution.
-* Domain joining.
+The Active Directory domain is:
 
-Therefore, **SOC-DC01 provides both AD DS and DNS services** in this lab.
+```text
+corp.local
+```
 
-## 6. External Resolution
+DNS resolution for the domain is handled by the Domain Controller.
 
-For domains that are not hosted internally, the internal DNS server may use configured DNS forwarders to resolve external names.
+```text
+SOC-WIN01
+10.10.10.128
+      │
+      │ DNS
+      ▼
+SOC-DC01
+10.10.20.10
+      │
+      ▼
+corp.local
+```
 
-This keeps client DNS configuration centralized and allows DNS activity to be monitored from the internal DNS server.
+## Role in Active Directory
 
-## 7. Security Considerations
+DNS is a critical dependency for Active Directory.
 
-The DNS design follows these principles:
+The Windows endpoint uses DNS to discover domain services and locate the Domain Controller.
 
-* Clients use the internal DNS server for domain resolution.
-* Direct dependency on public DNS from domain clients is avoided where possible.
-* DNS is centralized on the domain controller.
-* DNS configuration will be validated after implementation.
-* DNS telemetry can be used for future security monitoring.
+Without correct DNS configuration, domain join, authentication, and domain service discovery may fail even when basic IP connectivity is working.
 
-## 8. Validation
+## Network Placement
 
-DNS functionality will be validated by confirming:
+DNS is intentionally hosted in the Servers network together with the Domain Controller.
 
-| Test                         | Expected Result                          |
-| ---------------------------- | ---------------------------------------- |
-| Client → DNS server          | Reachable                                |
-| Internal hostname resolution | Successful                               |
-| AD domain resolution         | Successful                               |
-| External hostname resolution | Successful when forwarding is configured |
-| Client domain join           | Successful                               |
+| Component      | Address        | Network         |
+| -------------- | -------------- | --------------- |
+| SOC-DC01 / DNS | `10.10.20.10`  | `10.10.20.0/24` |
+| SOC-WIN01      | `10.10.10.128` | `10.10.10.0/24` |
 
-## 9. SOC Relevance
+The firewall permits the required communication between the Users network and the Domain Controller.
 
-DNS can provide valuable security telemetry for future SOC operations.
+## Client Configuration
 
-Potential investigation areas include:
+`SOC-WIN01` is configured to use:
 
-* Suspicious domain lookups.
-* Repeated failed DNS queries.
-* Unusual external domains.
-* Potential command-and-control activity.
-* Malware-related DNS behavior.
-* DNS-based tunneling.
+```text
+Preferred DNS Server:
+10.10.20.10
+```
 
-DNS logs can later be integrated into the SIEM for detection and threat hunting.
+This allows the endpoint to resolve:
+
+```text
+corp.local
+```
+
+and discover domain services correctly.
+
+## DNS Validation
+
+DNS resolution was tested from `SOC-WIN01` using:
+
+```cmd
+nslookup corp.local
+```
+
+The result returned:
+
+```text
+Name:
+corp.local
+
+Address:
+10.10.20.10
+```
+
+This confirms that the domain name resolves to the expected Domain Controller.
+
+## Network Connectivity Validation
+
+DNS connectivity through the firewall was also validated using:
+
+```powershell
+Test-NetConnection 10.10.20.10 -Port 53
+```
+
+The result was:
+
+```text
+TcpTestSucceeded: True
+```
+
+This confirms that the Users network can reach the DNS service hosted on `SOC-DC01`.
+
+## Security Considerations
+
+DNS is restricted to the internal Active Directory architecture.
+
+The Domain Controller remains inside the Servers network rather than being directly exposed to the external WAN.
+
+The firewall controls communication between the Users and Servers networks.
+
+## SOC Relevance
+
+DNS will later become an important source of security telemetry for SOC operations.
+
+Future projects may use DNS activity to investigate:
+
+* Suspicious domain resolution
+* Malware-related domains
+* Command-and-control activity
+* Unusual DNS behavior
+* Internal reconnaissance
+
+DNS monitoring and analysis are intentionally outside the scope of this project.
+
+## Result
+
+The lab has a functional centralized DNS service integrated with Active Directory.
+
+Validated capabilities include:
+
+* Domain name resolution
+* DNS connectivity across the firewall
+* Domain Controller discovery support
+* Windows domain operation
