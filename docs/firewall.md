@@ -1,101 +1,157 @@
+# Firewall and Network Segmentation
 
-## 1. Firewall Overview
+## Objective
 
-**SOC-FW01** runs pfSense and acts as the central security boundary between the WAN, Users, and Servers networks.
+Implement network segmentation between the Users and Servers networks using pfSense and enforce controlled communication between them.
 
-Its main responsibilities are:
+The firewall acts as the Layer 3 security boundary between:
 
-* Routing between network segments.
-* Controlling inter-network communication.
-* Controlling outbound Internet access.
-* Enforcing security policies.
-* Providing firewall telemetry for future SOC monitoring.
+* Users Network: `10.10.10.0/24`
+* Servers Network: `10.10.20.0/24`
 
-## 2. Firewall Interfaces
+## Firewall Role
 
-| Interface   | Network | Address         | Role                  |
-| ----------- | ------- | --------------- | --------------------- |
-| **WAN**     | VMnet8  | DHCP            | External connectivity |
-| **USERS**   | VMnet1  | `10.10.10.1/24` | Users gateway         |
-| **SERVERS** | VMnet2  | `10.10.20.1/24` | Servers gateway       |
+`SOC-FW01` provides:
 
-## 3. Traffic Control Model
+* Inter-network routing
+* Network isolation
+* Traffic filtering
+* Internet connectivity for the lab
+* Security enforcement between Users and Servers
 
 ```text
-                 Internet
-                    │
-                    ▼
-              ┌───────────┐
-              │ SOC-FW01  │
-              │  pfSense  │
-              └─────┬─────┘
-                    │
-           ┌────────┴────────┐
-           │                 │
-        USERS             SERVERS
-     10.10.10.0/24     10.10.20.0/24
-           │                 │
-      SOC-WIN01          SOC-DC01
+Internet
+   │
+VMware NAT / VMnet8
+   │
+SOC-FW01
+   ├── USERS
+   │   10.10.10.0/24
+   │
+   └── SERVERS
+       10.10.20.0/24
 ```
 
-All traffic crossing between these zones is evaluated by pfSense firewall policy.
+## Interface Design
 
-## 4. Security Policy Model
+| Interface | Network             | Gateway / Address | Purpose                |
+| --------- | ------------------- | ----------------- | ---------------------- |
+| WAN       | VMware NAT / VMnet8 | DHCP              | External connectivity  |
+| LAN       | `10.10.10.0/24`     | `10.10.10.1`      | User endpoints         |
+| SERVERS   | `10.10.20.0/24`     | `10.10.20.1`      | Infrastructure servers |
 
-The firewall follows a **least-privilege** approach:
+## Final LAN Policy
 
-| Traffic                          | Policy Intent     |
-| -------------------------------- | ----------------- |
-| USERS → Required AD/DNS services | Allow             |
-| USERS → Internet                 | Allow as required |
-| USERS → Other server services    | Restrict          |
-| SERVERS → Internet               | Allow as required |
-| Unauthorized inter-zone traffic  | Deny              |
-| Unnecessary inbound WAN traffic  | Deny              |
+The final active LAN policy is ordered as follows:
 
-The final implementation will use explicit firewall rules based on these requirements.
+| Order | Source                          | Destination       | Action | Purpose                                                    |
+| ----: | ------------------------------- | ----------------- | ------ | ---------------------------------------------------------- |
+|     1 | Firewall anti-lockout mechanism | LAN address       | Allow  | Preserve administrative access to pfSense                  |
+|     2 | `LAN subnets`                   | `10.10.20.10`     | Allow  | Permit Users to reach the Domain Controller                |
+|     3 | `LAN subnets`                   | `SERVERS subnets` | Block  | Prevent access to other Servers                            |
+|     4 | `LAN subnets`                   | Any               | Allow  | Provide required access to permitted external destinations |
 
-## 5. Security Objectives
+The IPv6 default allow rule was disabled because IPv6 is not part of the current lab design.
 
-The firewall is designed to:
+## Segmentation Model
 
-* Prevent unauthorized network access.
-* Restrict unnecessary communication between Users and Servers.
-* Reduce lateral movement opportunities.
-* Control external connectivity.
-* Provide a central point for network security logging.
-* Support future detection and investigation activities.
+The security boundary is implemented from the Users interface.
 
-## 6. Logging and Monitoring
+```text
+USERS
+10.10.10.0/24
+      │
+      ├──────────────→ 10.10.20.10
+      │                SOC-DC01
+      │                ALLOWED
+      │
+      └──────────────→ 10.10.20.0/24
+                       OTHER SERVERS
+                       BLOCKED
+```
 
-Firewall events will provide useful telemetry for future SOC operations, including:
+This provides isolation while preserving the communication required by the current Active Directory environment.
 
-* Allowed connections.
-* Blocked connections.
-* Source and destination IP addresses.
-* Source and destination ports.
-* Protocol information.
-* Repeated connection attempts.
+## Domain Controller Exception
 
-This telemetry can later be forwarded to a SIEM such as Splunk for detection and investigation.
+`SOC-DC01` is explicitly allowed from the Users network because it provides core services required by the Windows domain environment, including DNS and Active Directory authentication services.
 
-## 7. Design Decisions
+The current lab uses:
 
-* pfSense is used as the central firewall and routing device.
-* Internal traffic must pass through pfSense between network segments.
-* The design follows least privilege rather than unrestricted internal communication.
-* No advanced firewall features are required at this stage.
-* Firewall configuration will be validated after implementation.
+```text
+SOC-DC01
+10.10.20.10
+```
 
-## 8. SOC Relevance
+## Temporary Validation Rule
 
-The firewall is a key security telemetry source in the lab.
+A temporary ICMP rule was created on the Servers interface during testing:
 
-It can help a SOC Analyst identify:
+```text
+Allow ICMP from host for validation
+```
 
-* Port scanning.
-* Unauthorized access attempts.
-* Suspicious outbound connections.
-* Cross-segment communication.
-* Potential lateral movement.
-* Repeated blocked connection attempts.
+The rule was disabled after validation and is not part of the final active firewall policy.
+
+## Validation
+
+### Allowed Traffic
+
+The following connection was successfully validated from `SOC-WIN01`:
+
+```text
+Source:
+10.10.10.128
+
+Destination:
+10.10.20.10:389
+```
+
+Result:
+
+```text
+TcpTestSucceeded: True
+```
+
+This confirms that the required communication path to the Domain Controller remains available.
+
+### Blocked Traffic
+
+Connectivity from `SOC-WIN01` to the Servers gateway was tested:
+
+```text
+Source:
+10.10.10.128
+
+Destination:
+10.10.20.1
+```
+
+Result:
+
+```text
+Request timed out
+```
+
+This confirms that traffic blocked by the segmentation policy does not reach the Servers network gateway.
+
+## Security Considerations
+
+The firewall policy follows a controlled-access model rather than relying only on network separation.
+
+The Users network is not given unrestricted access to the Servers network. Required access to the Domain Controller is explicitly permitted, while access to other server addresses is blocked.
+
+The project intentionally does not implement advanced network security technologies such as IDS/IPS, network monitoring, or SIEM integration. These belong to later projects.
+
+## Result
+
+The pfSense firewall successfully enforces the intended Users-to-Servers security boundary.
+
+The final environment provides:
+
+* Separate Users and Servers networks
+* Controlled inter-network routing
+* Explicit Domain Controller access
+* Blocking of unauthorized Users-to-Servers traffic
+* Validated firewall enforcement
+* Removal of temporary testing access
